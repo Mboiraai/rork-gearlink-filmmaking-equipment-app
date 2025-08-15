@@ -1,0 +1,38 @@
+export const chatData = [
+  {
+    id: '1',
+    userName: 'Alex Johnson',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+    lastMessage: 'Yes, the RED Komodo is available for those dates',
+    timestamp: '2 min ago',
+    equipmentName: 'RED Komodo 6K',
+    unread: 2,
+  },
+  {
+    id: '2',
+    userName: 'Sarah Miller',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
+    lastMessage: 'I can offer a discount for weekly rental',
+    timestamp: '1 hour ago',
+    equipmentName: 'Canon RF 24-70mm',
+    unread: 0,
+  },
+  {
+    id: '3',
+    userName: 'Michael Chen',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
+    lastMessage: 'The light comes with all modifiers',
+    timestamp: 'Yesterday',
+    equipmentName: 'Aputure 600d Pro',
+    unread: 0,
+  },
+  {
+    id: '4',
+    userName: 'Emma Wilson',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400',
+    lastMessage: 'Sure, I can deliver it to your location',
+    timestamp: '2 days ago',
+    equipmentName: 'Zoom H6 Recorder',
+    unread: 1,
+  },
+];
