@@ -1,6 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useEffect } from 'react';
-import * as Location from 'expo-location';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 interface LocationData {
@@ -23,26 +22,40 @@ const currencyMap: { [key: string]: string } = {
 
 export const [LocationProvider, useLocation] = createContextHook(() => {
   const [location, setLocation] = useState<LocationData | null>(null);
-  const [currency, setCurrency] = useState('USD');
-  const [loading, setLoading] = useState(true);
+  const [currency, setCurrency] = useState<string>('USD');
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (Platform.OS !== 'web') {
-      requestLocationPermission();
-    } else {
-      // Set default for web
-      setLoading(false);
-    }
-  }, []);
-
-  const requestLocationPermission = async () => {
+  const requestLocationPermission = useCallback(async () => {
     try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+          await new Promise<void>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                const { latitude, longitude } = pos.coords;
+                const detectedCurrency = currencyMap.default;
+                setLocation({ latitude, longitude, country: 'Unknown', city: 'Unknown', currency: detectedCurrency });
+                setCurrency(detectedCurrency);
+                resolve();
+              },
+              (err) => {
+                console.warn('[Location] Web geolocation error', err?.message ?? err);
+                setError('Failed to get location');
+                resolve();
+              }
+            );
+          });
+        } else {
+          setError('Geolocation not available');
+        }
+        return;
+      }
+
+      const Location = await import('expo-location');
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
       if (status !== 'granted') {
         setError('Permission to access location was denied');
-        setLoading(false);
         return;
       }
 
@@ -53,32 +66,34 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
       });
 
       if (reverseGeocode.length > 0) {
-        const { country, city } = reverseGeocode[0];
-        const detectedCurrency = currencyMap[country || ''] || currencyMap.default;
-        
+        const { country, city } = reverseGeocode[0] as { country?: string; city?: string };
+        const detectedCurrency = currencyMap[country ?? ''] ?? currencyMap.default;
         setLocation({
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
-          country: country || 'Unknown',
-          city: city || 'Unknown',
+          country: country ?? 'Unknown',
+          city: city ?? 'Unknown',
           currency: detectedCurrency,
         });
-        
         setCurrency(detectedCurrency);
       }
-    } catch (error) {
-      console.error('Error getting location:', error);
+    } catch (e: unknown) {
+      console.error('[Location] Error getting location', e);
       setError('Failed to get location');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  return {
+  useEffect(() => {
+    void requestLocationPermission();
+  }, [requestLocationPermission]);
+
+  return useMemo(() => ({
     location,
     currency,
     loading,
     error,
     requestLocationPermission,
-  };
+  }), [location, currency, loading, error, requestLocationPermission]);
 });
