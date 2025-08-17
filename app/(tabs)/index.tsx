@@ -17,7 +17,7 @@ import { MapPin, Star, DollarSign } from "lucide-react-native";
 import { router } from "expo-router";
 import { useLocation } from "@/providers/LocationProvider";
 import { equipmentData } from "@/mocks/equipment";
-import { useSupabase } from "@/providers/SupabaseProvider";
+
 import type { EquipmentItem } from "@/types/equipment";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -26,7 +26,7 @@ const CARD_SPACING = 16;
 
 export default function HomeScreen() {
   const { currency } = useLocation();
-  const { enabled, equipment } = useSupabase();
+
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const headerOpacity = scrollY.interpolate({
@@ -35,7 +35,7 @@ export default function HomeScreen() {
     extrapolate: 'clamp',
   });
 
-  const source: EquipmentItem[] = enabled && equipment.length > 0 ? equipment : (equipmentData as unknown as EquipmentItem[]);
+  const source: EquipmentItem[] = (equipmentData as unknown as EquipmentItem[]);
 
   const featuredEquipment = useMemo(() => source.filter(item => item.featured), [source]);
   const popularEquipment = useMemo(() => source.filter(item => (item.rating ?? 0) >= 4.5), [source]);

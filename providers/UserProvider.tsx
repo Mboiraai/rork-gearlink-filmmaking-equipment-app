@@ -1,7 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUser as sbGetUser, signInWithEmail, signUpWithEmail, signOut as sbSignOut, SupabaseUser } from '@/lib/supabaseRest';
 
 export interface User {
   id: string;
@@ -24,13 +23,19 @@ interface UserContextValue {
   logout: () => Promise<void>;
 }
 
-function mapSupabaseUser(u: SupabaseUser | null): User | null {
-  if (!u) return null;
-  const name = (u.user_metadata?.name as string | undefined) ?? (u.email?.split('@')[0] ?? 'User');
-  const avatar = (u.user_metadata?.avatar as string | undefined) ?? undefined;
-  const userTypeRaw = u.user_metadata?.userType as string | undefined;
-  const userType: 'owner' | 'renter' = userTypeRaw === 'owner' ? 'owner' : 'renter';
-  return { id: u.id, name, email: u.email ?? '', avatar, userType };
+interface StoredAuthUser {
+  id: string;
+  email: string;
+  password: string;
+  name: string;
+  avatar?: string;
+  userType: 'owner' | 'renter';
+}
+
+const USERS_KEY = 'auth:users';
+
+function generateId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 export const [UserProvider, useUser] = createContextHook<UserContextValue>(() => {
@@ -51,12 +56,7 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
       const storedUser = await AsyncStorage.getItem('user');
       const verificationStatus = await AsyncStorage.getItem('isVerified');
       if (verificationStatus) setIsVerified(JSON.parse(verificationStatus));
-      const sbUser = await sbGetUser();
-      const mapped = mapSupabaseUser(sbUser);
-      if (mapped) {
-        await AsyncStorage.setItem('user', JSON.stringify(mapped));
-        setUser(mapped);
-      } else if (storedUser) {
+      if (storedUser) {
         setUser(JSON.parse(storedUser) as User);
       } else {
         setUser(null);
@@ -93,14 +93,16 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     try {
       setAuthLoading(true);
       setError(null);
-      const session = await signInWithEmail({ email, password });
-      const sbUser = await sbGetUser();
-      const mapped = mapSupabaseUser(sbUser);
-      if (mapped) {
-        await AsyncStorage.setItem('user', JSON.stringify(mapped));
-        setUser(mapped);
+      const usersRaw = await AsyncStorage.getItem(USERS_KEY);
+      const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
+      const match = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      if (!match) {
+        throw new Error('Invalid credentials');
       }
-      return !!session?.access_token;
+      const mapped: User = { id: match.id, name: match.name, email: match.email, avatar: match.avatar, userType: match.userType };
+      await AsyncStorage.setItem('user', JSON.stringify(mapped));
+      setUser(mapped);
+      return true;
     } catch (e: unknown) {
       console.error('[Auth] signIn error', e);
       setError(e instanceof Error ? e.message : 'Failed to sign in');
@@ -114,14 +116,26 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     try {
       setAuthLoading(true);
       setError(null);
-      const session = await signUpWithEmail({ email, password });
-      const sbUser = await sbGetUser();
-      const mapped = mapSupabaseUser(sbUser);
-      if (mapped) {
-        await AsyncStorage.setItem('user', JSON.stringify(mapped));
-        setUser(mapped);
+      const usersRaw = await AsyncStorage.getItem(USERS_KEY);
+      const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
+      const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existing) {
+        throw new Error('Email already registered');
       }
-      return !!session?.access_token;
+      const newUser: StoredAuthUser = {
+        id: generateId(),
+        email,
+        password,
+        name: email.split('@')[0] ?? 'User',
+        avatar: undefined,
+        userType: 'renter',
+      };
+      const updated = [...users, newUser];
+      await AsyncStorage.setItem(USERS_KEY, JSON.stringify(updated));
+      const mapped: User = { id: newUser.id, name: newUser.name, email: newUser.email, avatar: newUser.avatar, userType: newUser.userType };
+      await AsyncStorage.setItem('user', JSON.stringify(mapped));
+      setUser(mapped);
+      return true;
     } catch (e: unknown) {
       console.error('[Auth] signUp error', e);
       setError(e instanceof Error ? e.message : 'Failed to sign up');
@@ -135,10 +149,8 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     try {
       setAuthLoading(true);
       setError(null);
-      await sbSignOut();
-      await AsyncStorage.multiRemove(['user', 'isVerified']);
+      await AsyncStorage.multiRemove(['user']);
       setUser(null);
-      setIsVerified(false);
     } catch (e: unknown) {
       console.error('Error logging out:', e);
       setError(e instanceof Error ? e.message : 'Unknown error');

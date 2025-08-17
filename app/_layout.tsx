@@ -5,7 +5,6 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { UserProvider } from "@/providers/UserProvider";
 import { LocationProvider } from "@/providers/LocationProvider";
-import { SupabaseProvider } from "@/providers/SupabaseProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -63,9 +62,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <LocationProvider>
           <UserProvider>
-            <SupabaseProvider>
-              <RootLayoutNav />
-            </SupabaseProvider>
+            <RootLayoutNav />
           </UserProvider>
         </LocationProvider>
       </GestureHandlerRootView>
