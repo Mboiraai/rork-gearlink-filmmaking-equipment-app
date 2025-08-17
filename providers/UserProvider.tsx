@@ -19,7 +19,7 @@ interface UserContextValue {
   saveUser: (userData: User) => Promise<void>;
   setVerified: (status: boolean) => Promise<void>;
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, name?: string, userType?: 'owner' | 'renter') => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -112,7 +112,7 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, name?: string, userType: 'owner' | 'renter' = 'renter') => {
     try {
       setAuthLoading(true);
       setError(null);
@@ -122,13 +122,14 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
       if (existing) {
         throw new Error('Email already registered');
       }
+      const resolvedName = name && name.trim().length > 0 ? name.trim() : (email.split('@')[0] ?? 'User');
       const newUser: StoredAuthUser = {
         id: generateId(),
         email,
         password,
-        name: email.split('@')[0] ?? 'User',
+        name: resolvedName,
         avatar: undefined,
-        userType: 'renter',
+        userType,
       };
       const updated = [...users, newUser];
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(updated));

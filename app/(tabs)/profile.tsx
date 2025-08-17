@@ -21,6 +21,9 @@ import {
   AlertCircle,
   LogIn,
   UserPlus,
+  Eye,
+  EyeOff,
+  CheckCircle2,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useUser } from "@/providers/UserProvider";
@@ -31,6 +34,13 @@ export default function ProfileScreen() {
   const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = React.useState<string>('');
   const [password, setPassword] = React.useState<string>('');
+  const [showPassword, setShowPassword] = React.useState<boolean>(false);
+  const [confirmPassword, setConfirmPassword] = React.useState<string>('');
+  const [name, setName] = React.useState<string>('');
+  const [acceptTerms, setAcceptTerms] = React.useState<boolean>(false);
+  const [signupUserType, setSignupUserType] = React.useState<'owner' | 'renter'>('renter');
+  const [emailError, setEmailError] = React.useState<string>('');
+  const [passwordError, setPasswordError] = React.useState<string>('');
 
   React.useEffect(() => {
     setIsOwner(user?.userType === 'owner');
@@ -40,14 +50,57 @@ export default function ProfileScreen() {
     router.push('/verification' as any);
   };
 
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+
+  const passwordScore = React.useMemo(() => {
+    let score = 0;
+    if (password.length >= 8) score += 1;
+    if (/[A-Z]/.test(password)) score += 1;
+    if (/[0-9]/.test(password)) score += 1;
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+    return score; // 0-4
+  }, [password]);
+
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter email and password.');
+    if (mode === 'signin') {
+      if (!email || !password) {
+        Alert.alert('Missing fields', 'Please enter email and password.');
+        return;
+      }
+      const ok = await signIn(email.trim(), password);
+      if (!ok) {
+        Alert.alert('Authentication failed', error ?? 'Please try again');
+      }
       return;
     }
-    const ok = await (mode === 'signin' ? signIn(email.trim(), password) : signUp(email.trim(), password));
+
+    setEmailError('');
+    setPasswordError('');
+
+    if (!name.trim()) {
+      Alert.alert('Missing name', 'Please enter your full name.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setEmailError('Enter a valid email address');
+      return;
+    }
+    if (passwordScore < 2) {
+      setPasswordError('Password is too weak');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+    if (!acceptTerms) {
+      Alert.alert('Terms not accepted', 'Please accept Terms & Privacy Policy.');
+      return;
+    }
+
+    const ok = await signUp(email.trim(), password, name.trim(), signupUserType);
     if (!ok) {
-      Alert.alert('Authentication failed', error ?? 'Please try again');
+      Alert.alert('Sign up failed', error ?? 'Please try again');
     }
   };
 
@@ -55,7 +108,7 @@ export default function ProfileScreen() {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.authContainer}>
         <Text style={styles.authTitle}>Welcome to GearLink</Text>
-        <Text style={styles.authSubtitle}>Sign in to manage your gear and chats</Text>
+        <Text style={styles.authSubtitle}>{mode === 'signin' ? 'Sign in to manage your gear and chats' : 'Create your GearLink account'}</Text>
 
         <View style={styles.authSwitch}>
           <TouchableOpacity
@@ -76,26 +129,108 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <TextInput
-          testID="email-input"
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#8E8E93"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          testID="password-input"
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#8E8E93"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        {mode === 'signup' && (
+          <View>
+            <View style={styles.segmented}>
+              <TouchableOpacity
+                testID="type-renter"
+                style={[styles.segment, signupUserType === 'renter' && styles.segmentActive]}
+                onPress={() => setSignupUserType('renter')}
+              >
+                <Text style={[styles.segmentText, signupUserType === 'renter' && styles.segmentTextActive]}>Renter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="type-owner"
+                style={[styles.segment, signupUserType === 'owner' && styles.segmentActive]}
+                onPress={() => setSignupUserType('owner')}
+              >
+                <Text style={[styles.segmentText, signupUserType === 'owner' && styles.segmentTextActive]}>Owner</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              testID="name-input"
+              style={styles.input}
+              placeholder="Full name"
+              placeholderTextColor="#8E8E93"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+        )}
+
+        <View>
+          <TextInput
+            testID="email-input"
+            style={[styles.input, emailError ? styles.inputError : undefined]}
+            placeholder="Email"
+            placeholderTextColor="#8E8E93"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={(t: string) => { setEmail(t); setEmailError(''); }}
+          />
+          {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
+        </View>
+
+        <View>
+          <View style={styles.passwordRow}>
+            <TextInput
+              testID="password-input"
+              style={[styles.input, { flex: 1 }, passwordError ? styles.inputError : undefined]}
+              placeholder={mode === 'signin' ? 'Password' : 'Create a password (min 8 characters)'}
+              placeholderTextColor="#8E8E93"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={(t: string) => { setPassword(t); setPasswordError(''); }}
+            />
+            <TouchableOpacity
+              accessibilityLabel="Toggle password visibility"
+              onPress={() => setShowPassword(v => !v)}
+              style={styles.eyeBtn}
+              testID="toggle-password-visibility"
+            >
+              {showPassword ? <EyeOff size={18} color="#8E8E93" /> : <Eye size={18} color="#8E8E93" />}
+            </TouchableOpacity>
+          </View>
+          {mode === 'signup' && (
+            <View style={styles.strengthRow}>
+              {[0,1,2,3].map((i) => (
+                <View key={i} style={[styles.strengthBar, { backgroundColor: i < passwordScore ? '#FF6B35' : '#1C1C2E' }]} />
+              ))}
+              <Text style={styles.strengthLabel}>{['Very weak','Weak','Good','Strong','Strong'][passwordScore]}</Text>
+            </View>
+          )}
+          {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+        </View>
+
+        {mode === 'signup' && (
+          <TextInput
+            testID="confirm-password-input"
+            style={[styles.input, passwordError ? styles.inputError : undefined]}
+            placeholder="Confirm password"
+            placeholderTextColor="#8E8E93"
+            secureTextEntry={!showPassword}
+            value={confirmPassword}
+            onChangeText={(t: string) => { setConfirmPassword(t); setPasswordError(''); }}
+          />
+        )}
+
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {mode === 'signup' && (
+          <TouchableOpacity
+            testID="accept-terms"
+            onPress={() => setAcceptTerms(v => !v)}
+            style={styles.termsRow}
+          >
+            <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
+              {acceptTerms && <CheckCircle2 size={16} color="#0A0E27" />}
+            </View>
+            <Text style={styles.linkText}>I agree to the Terms and Privacy Policy</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           testID="auth-submit"
           style={styles.primaryBtn}
@@ -106,6 +241,12 @@ export default function ProfileScreen() {
             <Text style={styles.primaryBtnText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>
           )}
         </TouchableOpacity>
+
+        {mode === 'signin' && (
+          <TouchableOpacity testID="forgot-password" style={styles.linkBtn} onPress={() => Alert.alert('Reset password', 'Password reset is not configured in this demo.') }>
+            <Text style={styles.linkText}>Forgot password?</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     );
   }
@@ -387,6 +528,29 @@ const styles = StyleSheet.create({
   switchTextActive: {
     color: '#0A0E27',
   },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1C2E',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 12,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  segmentActive: {
+    backgroundColor: '#2A2A3B',
+  },
+  segmentText: {
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
+  },
   input: {
     backgroundColor: '#1C1C2E',
     borderRadius: 12,
@@ -394,6 +558,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     marginBottom: 12,
+  },
+  inputError: {
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eyeBtn: {
+    marginLeft: 8,
+    padding: 10,
+    backgroundColor: '#1C1C2E',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+  },
+  strengthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  strengthBar: {
+    height: 6,
+    flex: 1,
+    borderRadius: 3,
+  },
+  strengthLabel: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginLeft: 8,
+    width: 60,
   },
   primaryBtn: {
     backgroundColor: '#FF6B35',
@@ -407,8 +606,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  linkBtn: {
+    alignSelf: 'center',
+    marginTop: 12,
+  },
+  linkText: {
+    color: '#8E8E93',
+    textDecorationLine: 'underline',
+  },
   errorText: {
     color: '#FF6B35',
     marginBottom: 8,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: '#1C1C2E',
+    borderWidth: 1,
+    borderColor: '#2A2A3B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
   },
 });
