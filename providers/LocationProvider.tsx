@@ -89,11 +89,40 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
     void requestLocationPermission();
   }, [requestLocationPermission]);
 
+  const manualSetCurrency = useCallback(async (code: string) => {
+    try {
+      setCurrency(code);
+      if (location) {
+        setLocation({ ...location, currency: code });
+      }
+      await import('@react-native-async-storage/async-storage').then(async (m) => {
+        await m.default.setItem('pref:currency', code);
+      });
+    } catch (e) {
+      console.error('[Location] set currency error', e);
+    }
+  }, [location]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const m = await import('@react-native-async-storage/async-storage');
+        const stored = await m.default.getItem('pref:currency');
+        if (mounted && stored) {
+          setCurrency(stored);
+        }
+      } catch {}
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   return useMemo(() => ({
     location,
     currency,
     loading,
     error,
     requestLocationPermission,
-  }), [location, currency, loading, error, requestLocationPermission]);
+    setCurrency: manualSetCurrency,
+  }), [location, currency, loading, error, requestLocationPermission, manualSetCurrency]);
 });

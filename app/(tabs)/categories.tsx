@@ -6,20 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  Camera,
-  Aperture,
-  Lightbulb,
-  Mic,
-  Plane,
-  Monitor,
-  Battery,
-  HardDrive,
-  Sparkles,
-  Truck,
-} from "lucide-react-native";
 import { router } from "expo-router";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -28,7 +17,7 @@ const TILE_SIZE = (screenWidth - 60) / 2;
 interface Category {
   id: string;
   name: string;
-  icon: any;
+  image: string;
   gradient: string[];
   count: number;
 }
@@ -37,71 +26,71 @@ const categories: Category[] = [
   {
     id: "cameras",
     name: "Cameras & Support",
-    icon: Camera,
-    gradient: ["#667eea", "#764ba2"],
+    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 156,
   },
   {
     id: "lenses",
     name: "Lenses & Accessories",
-    icon: Aperture,
-    gradient: ["#f093fb", "#f5576c"],
+    image: "https://images.unsplash.com/photo-1519183071298-a2962be96f83?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 243,
   },
   {
     id: "lighting",
     name: "Lighting & Grip",
-    icon: Lightbulb,
-    gradient: ["#ffd89b", "#19547b"],
+    image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 189,
   },
   {
     id: "audio",
     name: "Audio & Sound",
-    icon: Mic,
-    gradient: ["#4facfe", "#00f2fe"],
+    image: "https://images.unsplash.com/photo-1512173141860-5a9ec2fbe33e?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 97,
   },
   {
     id: "drones",
     name: "Drones & Aerial",
-    icon: Plane,
-    gradient: ["#43e97b", "#38f9d7"],
+    image: "https://images.unsplash.com/photo-1473187983305-f615310e7daa?w=800&auto=format",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 64,
   },
   {
     id: "monitors",
     name: "Monitors & Assist",
-    icon: Monitor,
-    gradient: ["#fa709a", "#fee140"],
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 82,
   },
   {
     id: "power",
     name: "Power & Batteries",
-    icon: Battery,
-    gradient: ["#30cfd0", "#330867"],
+    image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 134,
   },
   {
     id: "storage",
     name: "Data & Storage",
-    icon: HardDrive,
-    gradient: ["#a8edea", "#fed6e3"],
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 76,
   },
   {
     id: "effects",
     name: "Special Effects",
-    icon: Sparkles,
-    gradient: ["#ff9a9e", "#fecfef"],
+    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 45,
   },
   {
     id: "transport",
     name: "Transport & Safety",
-    icon: Truck,
-    gradient: ["#fbc2eb", "#a6c1ee"],
+    image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
     count: 58,
   },
 ];
@@ -123,26 +112,27 @@ export default function CategoriesScreen() {
 
       <View style={styles.grid}>
         {categories.map((category) => {
-          const Icon = category.icon;
           return (
             <TouchableOpacity
               key={category.id}
               style={styles.tileContainer}
               onPress={() => handleCategoryPress(category)}
               activeOpacity={0.9}
+              testID={`category-${category.id}`}
             >
-              <LinearGradient
-                colors={category.gradient as [string, string, ...string[]]}
-                style={styles.tile}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={styles.tile}>
+                <Image source={{ uri: category.image }} style={styles.tileImage} />
+                <LinearGradient
+                  colors={category.gradient as [string, string, ...string[]]}
+                  style={styles.tileOverlay}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
                 <View style={styles.tileContent}>
-                  <Icon size={32} color="#FFFFFF" />
                   <Text style={styles.tileName}>{category.name}</Text>
                   <Text style={styles.tileCount}>{category.count} items</Text>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -184,23 +174,35 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     borderRadius: 16,
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
+    backgroundColor: '#1C1C2E',
+  },
+  tileImage: {
+    width: '100%',
+    height: '100%',
+  },
+  tileOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
   },
   tileContent: {
-    alignItems: 'center',
-    gap: 8,
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
   },
   tileName: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textAlign: 'center',
   },
   tileCount: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
   },
   bottomSpacing: {
     height: 20,

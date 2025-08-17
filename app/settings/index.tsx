@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, Switch, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, View, Text, Switch, TouchableOpacity, Alert } from 'react-native';
 import { Stack } from 'expo-router';
-import { Bell, ShieldCheck, Palette, Globe, Trash2 } from 'lucide-react-native';
+import { Bell, ShieldCheck, Palette, Globe, Trash2, DollarSign } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocation } from '@/providers/LocationProvider';
 
 export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState<boolean>(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [localization, setLocalization] = useState<string>('System');
+  const { currency, setCurrency } = useLocation() as unknown as { currency: string; setCurrency: (c: string) => Promise<void> };
+  const currencyOptions = useMemo(() => ['UGX','TZS','KES','RWF','USD','GBP','EUR'], []);
 
   const clearCache = async () => {
     try {
@@ -16,6 +19,17 @@ export default function SettingsScreen() {
     } catch (e) {
       Alert.alert('Error', 'Failed to clear cache');
     }
+  };
+
+  const chooseCurrency = () => {
+    Alert.alert(
+      'Select currency',
+      'Choose your preferred currency',
+      [
+        ...currencyOptions.map((code) => ({ text: code + (code === currency ? ' •' : ''), onPress: () => { void setCurrency(code); } })),
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
@@ -57,6 +71,15 @@ export default function SettingsScreen() {
         </View>
         <TouchableOpacity onPress={() => Alert.alert('Language', 'Localization is not implemented in this demo.') }>
           <Text style={styles.link}>{localization}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.item}>
+        <View style={styles.itemLeft}>
+          <DollarSign size={20} color="#FF6B35" />
+          <Text style={styles.itemText}>Currency</Text>
+        </View>
+        <TouchableOpacity onPress={chooseCurrency}>
+          <Text style={styles.link}>{currency}</Text>
         </TouchableOpacity>
       </View>
 

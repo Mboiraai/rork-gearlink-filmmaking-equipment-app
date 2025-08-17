@@ -130,16 +130,6 @@ export default function ProfileScreen() {
 
         {mode === 'signup' && (
           <View>
-            <View style={styles.segmented}>
-              <TouchableOpacity
-                testID="type-renter"
-                style={[styles.segment, styles.segmentActive]}
-                disabled
-              >
-                <Text style={[styles.segmentText, styles.segmentTextActive]}>Renter</Text>
-              </TouchableOpacity>
-            </View>
-
             <TextInput
               testID="name-input"
               style={styles.input}
