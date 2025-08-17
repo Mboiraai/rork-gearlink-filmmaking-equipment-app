@@ -19,6 +19,8 @@ interface UserContextValue {
   saveUser: (userData: User) => Promise<void>;
   setVerified: (status: boolean) => Promise<void>;
   setUserType: (type: 'owner' | 'renter') => Promise<void>;
+  updateProfile: (data: Partial<Pick<User, 'name' | 'avatar' | 'email'>>) => Promise<void>;
+  deleteAccount: () => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string, name?: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -175,6 +177,53 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     }
   }, [user]);
 
+  const updateProfile = useCallback(async (data: Partial<Pick<User, 'name' | 'avatar' | 'email'>>) => {
+    try {
+      setAuthLoading(true);
+      setError(null);
+      const current = user;
+      if (!current) throw new Error('No authenticated user');
+      const updated: User = { ...current, ...data };
+      await AsyncStorage.setItem('user', JSON.stringify(updated));
+
+      const usersRaw = await AsyncStorage.getItem(USERS_KEY);
+      const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
+      const idx = users.findIndex(u => u.id === current.id);
+      if (idx !== -1) {
+        users[idx] = { ...users[idx], name: updated.name, email: updated.email, avatar: updated.avatar } as StoredAuthUser;
+        await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+      setUser(updated);
+    } catch (e: unknown) {
+      console.error('[UserProvider] updateProfile error', e);
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [user]);
+
+  const deleteAccount = useCallback(async () => {
+    try {
+      setAuthLoading(true);
+      setError(null);
+      const current = user;
+      if (!current) throw new Error('No authenticated user');
+      const usersRaw = await AsyncStorage.getItem(USERS_KEY);
+      const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
+      const remaining = users.filter(u => u.id !== current.id);
+      await AsyncStorage.setItem(USERS_KEY, JSON.stringify(remaining));
+      await AsyncStorage.removeItem('user');
+      setUser(null);
+      return true;
+    } catch (e: unknown) {
+      console.error('[UserProvider] deleteAccount error', e);
+      setError(e instanceof Error ? e.message : 'Unknown error');
+      return false;
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [user]);
+
   const logout = useCallback(async () => {
     try {
       setAuthLoading(true);
@@ -198,8 +247,10 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     saveUser,
     setVerified,
     setUserType,
+    updateProfile,
+    deleteAccount,
     signIn,
     signUp,
     logout,
-  }), [user, isVerified, loading, authLoading, error, saveUser, setVerified, setUserType, signIn, signUp, logout]);
+  }), [user, isVerified, loading, authLoading, error, saveUser, setVerified, setUserType, updateProfile, deleteAccount, signIn, signUp, logout]);
 });

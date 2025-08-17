@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, Text, Switch, TouchableOpacity, Alert } from 'react-native';
 import { Stack } from 'expo-router';
-import { Bell, ShieldCheck, Palette, Globe, Trash2, DollarSign } from 'lucide-react-native';
+import { Bell, ShieldCheck, Palette, Globe, Trash2, DollarSign, UserCog } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocation } from '@/providers/LocationProvider';
+import { router } from 'expo-router';
 
 export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState<boolean>(true);
@@ -64,6 +65,13 @@ export default function SettingsScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>General</Text>
+      <TouchableOpacity style={styles.item} onPress={() => router.push('/profile/edit' as any)}>
+        <View style={styles.itemLeft}>
+          <UserCog size={20} color="#FF6B35" />
+          <Text style={styles.itemText}>Edit account</Text>
+        </View>
+        <Text style={styles.link}>Open</Text>
+      </TouchableOpacity>
       <View style={styles.item}>
         <View style={styles.itemLeft}>
           <Globe size={20} color="#FF6B35" />

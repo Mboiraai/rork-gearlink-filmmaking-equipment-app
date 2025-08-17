@@ -63,6 +63,20 @@ function RootLayoutNav() {
           presentation: "card" 
         }} 
       />
+      <Stack.Screen 
+        name="profile/edit" 
+        options={{ 
+          title: "Edit Profile",
+          presentation: "card" 
+        }} 
+      />
+      <Stack.Screen 
+        name="profile/reviews" 
+        options={{ 
+          title: "Reviews",
+          presentation: "card" 
+        }} 
+      />
     </Stack>
   );
 }

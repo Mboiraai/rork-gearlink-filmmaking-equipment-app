@@ -24,12 +24,13 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
+  Trash2,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useUser } from "@/providers/UserProvider";
 
 export default function ProfileScreen() {
-  const { user, isVerified, logout, signIn, signUp, authLoading, error, setUserType } = useUser();
+  const { user, isVerified, logout, signIn, signUp, authLoading, error, setUserType, deleteAccount } = useUser();
   const [isOwner, setIsOwner] = React.useState<boolean>(user?.userType === 'owner');
   const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = React.useState<string>('');
@@ -300,7 +301,7 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         {isOwner && (
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/owner/new-listing' as any)}>
+          <TouchableOpacity testID="add-listing" style={styles.menuItem} onPress={() => router.push('/owner/new-listing' as any)}>
             <View style={styles.menuItemLeft}>
               <Package size={20} color="#FF6B35" />
               <Text style={styles.menuItemText}>Add Listing</Text>
@@ -308,14 +309,21 @@ export default function ProfileScreen() {
             <ChevronRight size={20} color="#8E8E93" />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity testID="edit-profile" style={styles.menuItem} onPress={() => router.push('/profile/edit' as any)}>
+          <View style={styles.menuItemLeft}>
+            <UserPlus size={20} color="#FF6B35" />
+            <Text style={styles.menuItemText}>Edit Profile</Text>
+          </View>
+          <ChevronRight size={20} color="#8E8E93" />
+        </TouchableOpacity>
+        <TouchableOpacity testID="reviews" style={styles.menuItem} onPress={() => router.push('/profile/reviews' as any)}>
           <View style={styles.menuItemLeft}>
             <Star size={20} color="#FF6B35" />
             <Text style={styles.menuItemText}>Reviews</Text>
           </View>
           <ChevronRight size={20} color="#8E8E93" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings' as any)}>
+        <TouchableOpacity testID="settings" style={styles.menuItem} onPress={() => router.push('/settings' as any)}>
           <View style={styles.menuItemLeft}>
             <Settings size={20} color="#FF6B35" />
             <Text style={styles.menuItemText}>Settings</Text>
@@ -327,6 +335,20 @@ export default function ProfileScreen() {
       <TouchableOpacity testID="logout" style={styles.logoutButton} onPress={logout}>
         <LogOut size={20} color="#FF6B35" />
         <Text style={styles.logoutText}>Log Out</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        testID="delete-account"
+        style={[styles.logoutButton, { backgroundColor: '#2A0E0E' }]}
+        onPress={() => {
+          Alert.alert('Delete account', 'This action is irreversible. Continue?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: async () => { const ok = await deleteAccount(); if (!ok) { Alert.alert('Error', 'Could not delete account'); } } },
+          ]);
+        }}
+      >
+        <Trash2 size={20} color="#FF6B35" />
+        <Text style={styles.logoutText}>Delete Account</Text>
       </TouchableOpacity>
 
       <View style={styles.bottomSpacing} />
