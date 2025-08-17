@@ -29,7 +29,7 @@ import { router } from "expo-router";
 import { useUser } from "@/providers/UserProvider";
 
 export default function ProfileScreen() {
-  const { user, isVerified, logout, signIn, signUp, authLoading, error } = useUser();
+  const { user, isVerified, logout, signIn, signUp, authLoading, error, setUserType } = useUser();
   const [isOwner, setIsOwner] = React.useState<boolean>(user?.userType === 'owner');
   const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = React.useState<string>('');
@@ -38,7 +38,6 @@ export default function ProfileScreen() {
   const [confirmPassword, setConfirmPassword] = React.useState<string>('');
   const [name, setName] = React.useState<string>('');
   const [acceptTerms, setAcceptTerms] = React.useState<boolean>(false);
-  const [signupUserType, setSignupUserType] = React.useState<'owner' | 'renter'>('renter');
   const [emailError, setEmailError] = React.useState<string>('');
   const [passwordError, setPasswordError] = React.useState<string>('');
 
@@ -98,7 +97,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    const ok = await signUp(email.trim(), password, name.trim(), signupUserType);
+    const ok = await signUp(email.trim(), password, name.trim());
     if (!ok) {
       Alert.alert('Sign up failed', error ?? 'Please try again');
     }
@@ -134,17 +133,10 @@ export default function ProfileScreen() {
             <View style={styles.segmented}>
               <TouchableOpacity
                 testID="type-renter"
-                style={[styles.segment, signupUserType === 'renter' && styles.segmentActive]}
-                onPress={() => setSignupUserType('renter')}
+                style={[styles.segment, styles.segmentActive]}
+                disabled
               >
-                <Text style={[styles.segmentText, signupUserType === 'renter' && styles.segmentTextActive]}>Renter</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="type-owner"
-                style={[styles.segment, signupUserType === 'owner' && styles.segmentActive]}
-                onPress={() => setSignupUserType('owner')}
-              >
-                <Text style={[styles.segmentText, signupUserType === 'owner' && styles.segmentTextActive]}>Owner</Text>
+                <Text style={[styles.segmentText, styles.segmentTextActive]}>Renter</Text>
               </TouchableOpacity>
             </View>
 
@@ -305,7 +297,10 @@ export default function ProfileScreen() {
           </View>
           <Switch
             value={isOwner}
-            onValueChange={setIsOwner}
+            onValueChange={async (val: boolean) => {
+              setIsOwner(val);
+              await setUserType(val ? 'owner' : 'renter');
+            }}
             trackColor={{ false: '#1C1C2E', true: '#FF6B35' }}
             thumbColor="#FFFFFF"
           />
@@ -315,10 +310,10 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         {isOwner && (
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/owner/new-listing' as any)}>
             <View style={styles.menuItemLeft}>
               <Package size={20} color="#FF6B35" />
-              <Text style={styles.menuItemText}>My Listings</Text>
+              <Text style={styles.menuItemText}>Add Listing</Text>
             </View>
             <ChevronRight size={20} color="#8E8E93" />
           </TouchableOpacity>
@@ -330,7 +325,7 @@ export default function ProfileScreen() {
           </View>
           <ChevronRight size={20} color="#8E8E93" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings' as any)}>
           <View style={styles.menuItemLeft}>
             <Settings size={20} color="#FF6B35" />
             <Text style={styles.menuItemText}>Settings</Text>

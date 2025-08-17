@@ -49,6 +49,20 @@ function RootLayoutNav() {
           presentation: "modal" 
         }} 
       />
+      <Stack.Screen 
+        name="owner/new-listing" 
+        options={{ 
+          title: "New Listing",
+          presentation: "card" 
+        }} 
+      />
+      <Stack.Screen 
+        name="settings/index" 
+        options={{ 
+          title: "Settings",
+          presentation: "card" 
+        }} 
+      />
     </Stack>
   );
 }

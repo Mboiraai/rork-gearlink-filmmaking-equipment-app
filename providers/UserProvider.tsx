@@ -18,8 +18,9 @@ interface UserContextValue {
   error: string | null;
   saveUser: (userData: User) => Promise<void>;
   setVerified: (status: boolean) => Promise<void>;
+  setUserType: (type: 'owner' | 'renter') => Promise<void>;
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, password: string, name?: string, userType?: 'owner' | 'renter') => Promise<boolean>;
+  signUp: (email: string, password: string, name?: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -112,7 +113,7 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, name?: string, userType: 'owner' | 'renter' = 'renter') => {
+  const signUp = useCallback(async (email: string, password: string, name?: string) => {
     try {
       setAuthLoading(true);
       setError(null);
@@ -129,7 +130,7 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
         password,
         name: resolvedName,
         avatar: undefined,
-        userType,
+        userType: 'renter',
       };
       const updated = [...users, newUser];
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(updated));
@@ -145,6 +146,34 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
       setAuthLoading(false);
     }
   }, []);
+
+  const setUserType = useCallback(async (type: 'owner' | 'renter') => {
+    try {
+      setAuthLoading(true);
+      setError(null);
+      const current = user;
+      if (!current) {
+        throw new Error('No authenticated user');
+      }
+      const updatedUser: User = { ...current, userType: type };
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+
+      const usersRaw = await AsyncStorage.getItem(USERS_KEY);
+      const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
+      const idx = users.findIndex(u => u.id === current.id);
+      if (idx !== -1) {
+        users[idx] = { ...users[idx], userType: type };
+        await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+
+      setUser(updatedUser);
+    } catch (e: unknown) {
+      console.error('[UserProvider] setUserType error', e);
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [user]);
 
   const logout = useCallback(async () => {
     try {
@@ -168,8 +197,9 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     error,
     saveUser,
     setVerified,
+    setUserType,
     signIn,
     signUp,
     logout,
-  }), [user, isVerified, loading, authLoading, error, saveUser, setVerified, signIn, signUp, logout]);
+  }), [user, isVerified, loading, authLoading, error, saveUser, setVerified, setUserType, signIn, signUp, logout]);
 });
