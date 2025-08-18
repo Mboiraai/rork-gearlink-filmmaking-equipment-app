@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, Search, Grid3x3, MessageCircle, User } from "lucide-react-native";
+import { Home, Search, PlusCircle, Heart, User } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
 
@@ -41,17 +41,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="categories"
+        name="add-listing"
         options={{
-          title: "Categories",
-          tabBarIcon: ({ color, size }) => <Grid3x3 size={size} color={color} />,
+          title: "Add",
+          tabBarIcon: ({ color, size }) => <PlusCircle size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="messages"
+        name="favorites"
         options={{
-          title: "Messages",
-          tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
+          title: "Favorites",
+          tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
         }}
       />
       <Tabs.Screen
