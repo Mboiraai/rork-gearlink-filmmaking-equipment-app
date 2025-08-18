@@ -242,7 +242,35 @@ export default function NewListingScreen() {
   const pickImage = useCallback(async () => {
     try {
       if (Platform.OS === 'web') {
-        Alert.alert('Upload not available', 'Use a mobile device for image uploads in this demo.');
+        console.log('[NewListing] web file picker opened');
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        const files: string[] = await new Promise((resolve) => {
+          input.onchange = async () => {
+            const target = input as HTMLInputElement;
+            const selected = Array.from(target.files ?? []).slice(0, 5);
+            const readers = selected.map((file) =>
+              new Promise<string>((res, rej) => {
+                const reader = new FileReader();
+                reader.onload = () => res(String(reader.result ?? ''));
+                reader.onerror = (err) => rej(err);
+                reader.readAsDataURL(file);
+              })
+            );
+            try {
+              const dataUrls = await Promise.all(readers);
+              resolve(dataUrls);
+            } catch {
+              resolve([]);
+            }
+          };
+          input.click();
+        });
+        if (files.length > 0) {
+          setForm((prev) => ({ ...prev, photos: [...prev.photos, ...files].slice(0, 8) }));
+        }
         return;
       }
       const ImagePicker = await import('expo-image-picker');
