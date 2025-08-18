@@ -184,22 +184,24 @@ export default function HomeScreen() {
     }).start();
   }, [heroAppear]);
 
-  const renderFeaturedCarousel = () => {
+  const FeaturedCarousel = React.memo(({ items }: { items: EquipmentItem[] }) => {
     const listRef = useRef<FlatList<EquipmentItem> | null>(null);
     const indexRef = useRef<number>(0);
 
     useEffect(() => {
+      if (!items || items.length === 0) return;
       const id = setInterval(() => {
-        if (!featuredEquipment || featuredEquipment.length === 0) return;
-        indexRef.current = (indexRef.current + 1) % featuredEquipment.length;
+        indexRef.current = (indexRef.current + 1) % items.length;
         try {
           listRef.current?.scrollToIndex({ index: indexRef.current, animated: true });
         } catch (e) {
-          console.log("Carousel scroll error", e);
+          console.log('Carousel scroll error', e);
         }
       }, 3500);
       return () => clearInterval(id);
-    }, []);
+    }, [items]);
+
+    if (!items || items.length === 0) return null;
 
     const renderItem = ({ item }: { item: EquipmentItem }) => (
       <Pressable testID="hero-card" onPress={() => router.push(`/equipment/${item.id}` as any)} style={styles.heroContainer}>
@@ -237,7 +239,7 @@ export default function HomeScreen() {
       <Animated.View style={{ opacity: heroAppear }}>
         <FlatList
           ref={listRef as any}
-          data={featuredEquipment}
+          data={items}
           keyExtractor={(it) => `featured-${it.id}`}
           renderItem={renderItem}
           horizontal
@@ -246,7 +248,7 @@ export default function HomeScreen() {
         />
       </Animated.View>
     );
-  };
+  });
 
   const [query, setQuery] = useState<string>("");
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -340,7 +342,7 @@ export default function HomeScreen() {
           </View>
         </SafeAreaView>
 
-        {featuredEquipment.length > 0 && renderFeaturedCarousel()}
+        <FeaturedCarousel items={featuredEquipment} />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categories</Text>
