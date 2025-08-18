@@ -12,6 +12,7 @@ import {
   Animated,
   Easing,
   Pressable,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -187,16 +188,15 @@ export default function HomeScreen() {
   const FeaturedCarousel = React.memo(({ items }: { items: EquipmentItem[] }) => {
     const listRef = useRef<FlatList<EquipmentItem> | null>(null);
     const indexRef = useRef<number>(0);
+    const ITEM_WIDTH = screenWidth;
 
     useEffect(() => {
       if (!items || items.length === 0) return;
       const id = setInterval(() => {
         indexRef.current = (indexRef.current + 1) % items.length;
-        try {
-          listRef.current?.scrollToIndex({ index: indexRef.current, animated: true });
-        } catch (e) {
-          console.log('Carousel scroll error', e);
-        }
+        const nextIndex = indexRef.current;
+        console.log('Carousel auto-scroll to index', nextIndex);
+        listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
       }, 3500);
       return () => clearInterval(id);
     }, [items]);
@@ -204,35 +204,37 @@ export default function HomeScreen() {
     if (!items || items.length === 0) return null;
 
     const renderItem = ({ item }: { item: EquipmentItem }) => (
-      <Pressable testID="hero-card" onPress={() => router.push(`/equipment/${item.id}` as any)} style={styles.heroContainer}>
-        <Animated.Image source={{ uri: item.image }} style={[styles.heroImage, { transform: [{ translateY: heroParallax }] }]} />
-        <LinearGradient colors={["transparent", "rgba(0,0,0,0.9)"]} style={styles.heroGradient}>
-          <Animated.View
-            style={[
-              styles.heroContent,
-              {
-                opacity: heroAppear,
-                transform: [{ translateY: heroAppear.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-              },
-            ]}
-          >
-            <Text style={styles.heroTag}>FEATURED</Text>
-            <Text style={styles.heroTitle}>{item.name}</Text>
-            <Text style={styles.heroDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-            <View style={styles.heroFooter}>
-              <View style={styles.heroLocation}>
-                <MapPin size={16} color="#FF6B35" />
-                <Text style={styles.heroLocationText}>{item.location}</Text>
+      <View style={{ width: ITEM_WIDTH }}>
+        <Pressable testID="hero-card" onPress={() => router.push(`/equipment/${item.id}` as any)} style={styles.heroContainer}>
+          <Animated.Image source={{ uri: item.image }} style={[styles.heroImage, { transform: [{ translateY: heroParallax }] }]} />
+          <LinearGradient colors={["transparent", "rgba(0,0,0,0.9)"]} style={styles.heroGradient}>
+            <Animated.View
+              style={[
+                styles.heroContent,
+                {
+                  opacity: heroAppear,
+                  transform: [{ translateY: heroAppear.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                },
+              ]}
+            >
+              <Text style={styles.heroTag}>FEATURED</Text>
+              <Text style={styles.heroTitle}>{item.name}</Text>
+              <Text style={styles.heroDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+              <View style={styles.heroFooter}>
+                <View style={styles.heroLocation}>
+                  <MapPin size={16} color="#FF6B35" />
+                  <Text style={styles.heroLocationText}>{item.location}</Text>
+                </View>
+                <Pressable style={({ pressed }) => [styles.heroButton, pressed && { opacity: 0.9 }]} onPress={() => router.push(`/equipment/${item.id}` as any)}>
+                  <Text style={styles.heroButtonText}>Rent Now</Text>
+                </Pressable>
               </View>
-              <Pressable style={({ pressed }) => [styles.heroButton, pressed && { opacity: 0.9 }]} onPress={() => router.push(`/equipment/${item.id}` as any)}>
-                <Text style={styles.heroButtonText}>Rent Now</Text>
-              </Pressable>
-            </View>
-          </Animated.View>
-        </LinearGradient>
-      </Pressable>
+            </Animated.View>
+          </LinearGradient>
+        </Pressable>
+      </View>
     );
 
     return (
@@ -243,8 +245,19 @@ export default function HomeScreen() {
           keyExtractor={(it) => `featured-${it.id}`}
           renderItem={renderItem}
           horizontal
-          pagingEnabled
           showsHorizontalScrollIndicator={false}
+          snapToInterval={ITEM_WIDTH}
+          decelerationRate="fast"
+          getItemLayout={(_, index) => ({ length: ITEM_WIDTH, offset: ITEM_WIDTH * index, index })}
+          initialScrollIndex={0}
+          onScrollToIndexFailed={(info) => {
+            console.log('onScrollToIndexFailed', info);
+            try {
+              listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+            } catch (e) {
+              console.log('fallback scrollToOffset failed', e);
+            }
+          }}
         />
       </Animated.View>
     );
@@ -252,14 +265,15 @@ export default function HomeScreen() {
 
   const [query, setQuery] = useState<string>("");
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isFocused, setIsFocused] = useState<boolean>(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (query.trim().length > 2) setIsSearching(true);
+      if (query.trim().length > 0 || isFocused) setIsSearching(true);
       else setIsSearching(false);
-    }, 300);
+    }, 250);
     return () => clearTimeout(handler);
-  }, [query]);
+  }, [query, isFocused]);
 
   useEffect(() => {
     if (isSearching) {
@@ -297,10 +311,14 @@ export default function HomeScreen() {
     return () => undefined;
   }, [isSearching, typingDot1, typingDot2, typingDot3]);
 
-  const onFocusSearch = () =>
+  const onFocusSearch = () => {
+    setIsFocused(true);
     Animated.timing(searchFocusAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-  const onBlurSearch = () =>
+  };
+  const onBlurSearch = () => {
+    setIsFocused(false);
     Animated.timing(searchFocusAnim, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  };
 
   const searchPadding = searchFocusAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 16] });
   const searchBorder = searchFocusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
@@ -326,11 +344,17 @@ export default function HomeScreen() {
             <Text style={styles.logo}>GearLink</Text>
             <Text style={styles.tagline}>Professional Film Equipment Rental</Text>
             <Animated.View style={[styles.searchBar, { paddingHorizontal: searchPadding, borderWidth: searchBorder }]} testID="home-search-bar">
-              <Pressable style={{ flex: 1 }} onPressIn={onFocusSearch} onPressOut={onBlurSearch}>
-                <Text style={styles.searchInput as any}>
-                  {query.length === 0 ? "Search cameras, lenses, lighting…" : query}
-                </Text>
-              </Pressable>
+              <TextInput
+                testID="search-input"
+                style={styles.searchInput as any}
+                placeholder="Search cameras, lenses, lighting…"
+                placeholderTextColor="#6B6F8A"
+                value={query}
+                onChangeText={(t: string) => setQuery(t)}
+                onFocus={onFocusSearch}
+                onBlur={onBlurSearch}
+                returnKeyType="search"
+              />
               {isSearching && (
                 <View style={styles.typingDots}>
                   <Animated.View style={[styles.dot, { opacity: typingDot1 }]} />
@@ -587,6 +611,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   searchInput: {
+    flex: 1,
     color: "#E0E0E0",
     fontSize: 14,
   },
