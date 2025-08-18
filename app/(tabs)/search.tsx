@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,43 +9,129 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Dimensions,
 } from "react-native";
-import { Search as SearchIcon, X, Filter, MapPin, Star } from "lucide-react-native";
-import { router } from "expo-router";
+import { Search as SearchIcon, X, MapPin, Star } from "lucide-react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { equipmentData } from "@/mocks/equipment";
 import { useLocation } from "@/providers/LocationProvider";
+import { LinearGradient } from "expo-linear-gradient";
+
+const { width: screenWidth } = Dimensions.get("window");
+const TILE_SIZE = (screenWidth - 60) / 2;
+
+interface CategoryTile {
+  id: string;
+  name: string;
+  image: string;
+  gradient: string[];
+  count: number;
+}
+
+const categoryTiles: CategoryTile[] = [
+  {
+    id: "cameras",
+    name: "Cameras & Support",
+    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 156,
+  },
+  {
+    id: "lenses",
+    name: "Lenses & Accessories",
+    image: "https://images.unsplash.com/photo-1519183071298-a2962be96f83?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 243,
+  },
+  {
+    id: "lighting",
+    name: "Lighting & Grip",
+    image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 189,
+  },
+  {
+    id: "audio",
+    name: "Audio & Sound",
+    image: "https://images.unsplash.com/photo-1512173141860-5a9ec2fbe33e?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 97,
+  },
+  {
+    id: "drones",
+    name: "Drones & Aerial",
+    image: "https://images.unsplash.com/photo-1473187983305-f615310e7daa?w=800&auto=format",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 64,
+  },
+  {
+    id: "monitors",
+    name: "Monitors & Assist",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 82,
+  },
+  {
+    id: "power",
+    name: "Power & Batteries",
+    image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 134,
+  },
+  {
+    id: "storage",
+    name: "Data & Storage",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 76,
+  },
+  {
+    id: "effects",
+    name: "Special Effects",
+    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 45,
+  },
+  {
+    id: "transport",
+    name: "Transport & Safety",
+    image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?w=800",
+    gradient: ["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"] as string[],
+    count: 58,
+  },
+];
 
 export default function SearchScreen() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { currency } = useLocation();
+  const params = useLocalSearchParams();
+  const initialCategory = typeof params.category === 'string' ? params.category : null;
 
-  const categories = [
-    "All",
-    "Cameras",
-    "Lenses",
-    "Lighting",
-    "Audio",
-    "Drones",
-  ];
+  useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
+  }, [initialCategory]);
 
   const filteredEquipment = useMemo(() => {
     let filtered = equipmentData;
-    
+
     if (searchQuery) {
-      filtered = filtered.filter(item =>
+      filtered = filtered.filter((item) =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
-    if (selectedCategory && selectedCategory !== "All") {
-      filtered = filtered.filter(item =>
+
+    if (selectedCategory) {
+      filtered = filtered.filter((item) =>
         item.category.toLowerCase().includes(selectedCategory.toLowerCase())
       );
     }
-    
+
     return filtered;
   }, [searchQuery, selectedCategory]);
 
@@ -54,6 +140,7 @@ export default function SearchScreen() {
       style={styles.itemContainer}
       onPress={() => router.push(`/equipment/${item.id}` as any)}
       activeOpacity={0.8}
+      testID={`search-item-${item.id}`}
     >
       <Image source={{ uri: item.image }} style={styles.itemImage} />
       <View style={styles.itemContent}>
@@ -74,8 +161,10 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
+  const showGrid = !searchQuery && !selectedCategory;
+
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
@@ -90,53 +179,67 @@ export default function SearchScreen() {
             onChangeText={setSearchQuery}
             autoCapitalize="none"
             autoCorrect={false}
+            testID="search-input"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
+            <TouchableOpacity onPress={() => setSearchQuery("")} testID="search-clear">
               <X size={20} color="#8E8E93" />
             </TouchableOpacity>
           )}
         </View>
-        
-        <FlatList
-          data={categories}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.categoryChip,
-                selectedCategory === item && styles.categoryChipActive
-              ]}
-              onPress={() => setSelectedCategory(item === "All" ? null : item)}
-            >
-              <Text style={[
-                styles.categoryChipText,
-                selectedCategory === item && styles.categoryChipTextActive
-              ]}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.categoriesContainer}
-        />
       </View>
 
-      <FlatList
-        data={filteredEquipment}
-        renderItem={renderEquipmentItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <SearchIcon size={48} color="#8E8E93" />
-            <Text style={styles.emptyText}>No equipment found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your search</Text>
+      {showGrid ? (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Equipment Categories</Text>
+            <Text style={styles.subtitle}>Browse by equipment type</Text>
           </View>
-        }
-      />
+
+          <View style={styles.grid}>
+            {categoryTiles.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={styles.tileContainer}
+                onPress={() => setSelectedCategory(category.name)}
+                activeOpacity={0.9}
+                testID={`category-${category.id}`}
+              >
+                <View style={styles.tile}>
+                  <Image source={{ uri: category.image }} style={styles.tileImage} />
+                  <LinearGradient
+                    colors={category.gradient as [string, string, ...string[]]}
+                    style={styles.tileOverlay}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                  <View style={styles.tileContent}>
+                    <Text style={styles.tileName}>{category.name}</Text>
+                    <Text style={styles.tileCount}>{category.count} items</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.bottomSpacing} />
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={filteredEquipment}
+          renderItem={renderEquipmentItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <SearchIcon size={48} color="#8E8E93" />
+              <Text style={styles.emptyText}>No equipment found</Text>
+              <Text style={styles.emptySubtext}>Try adjusting your search</Text>
+            </View>
+          }
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -165,28 +268,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#FFFFFF',
-  },
-  categoriesContainer: {
-    paddingVertical: 12,
-    gap: 8,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#1C1C2E',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: '#FF6B35',
-  },
-  categoryChipText: {
-    color: '#8E8E93',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  categoryChipTextActive: {
     color: '#FFFFFF',
   },
   listContent: {
@@ -262,5 +343,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     marginTop: 8,
+  },
+  // Category grid styles (from former categories screen)
+  header: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginTop: 4,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    gap: 20,
+  },
+  tileContainer: {
+    width: TILE_SIZE,
+    height: TILE_SIZE,
+  },
+  tile: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#1C1C2E',
+  },
+  tileImage: {
+    width: '100%',
+    height: '100%',
+  },
+  tileOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+  },
+  tileContent: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+  },
+  tileName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  tileCount: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+  },
+  bottomSpacing: {
+    height: 20,
   },
 });

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, Search, PlusCircle, Heart, User } from "lucide-react-native";
+import { Home, Search, PlusCircle, User } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
 
@@ -45,13 +45,6 @@ export default function TabLayout() {
         options={{
           title: "Add",
           tabBarIcon: ({ color, size }) => <PlusCircle size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="favorites"
-        options={{
-          title: "Favorites",
-          tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
         }}
       />
       <Tabs.Screen
