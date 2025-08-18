@@ -398,109 +398,6 @@ export default function NewListingScreen() {
 
         <Text style={styles.header}>Create New Listing</Text>
 
-        <View style={styles.inputRow}>
-          <Tag size={18} color="#FF6B35" />
-          <TextInput
-            testID="title-input"
-            style={styles.input}
-            placeholder="Title (e.g., Canon C70 Cinema Camera)"
-            placeholderTextColor="#8E8E93"
-            value={form.title}
-            onChangeText={(t: string) => setForm(s => ({ ...s, title: t }))}
-          />
-        </View>
-
-        <View style={styles.inputRow}>
-          <FileText size={18} color="#FF6B35" />
-          <TextInput
-            testID="description-input"
-            style={[styles.input, styles.multiline]}
-            placeholder="Detailed description, included accessories, usage notes"
-            placeholderTextColor="#8E8E93"
-            multiline
-            numberOfLines={5}
-            value={form.description}
-            onChangeText={(t: string) => setForm(s => ({ ...s, description: t }))}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.rowItem, { marginRight: 8 }]}> 
-            <DollarSign size={18} color="#FF6B35" />
-            <TextInput
-              testID="daily-rate-input"
-              style={styles.input}
-              placeholder="Daily rate *"
-              placeholderTextColor="#8E8E93"
-              keyboardType="numeric"
-              value={form.dailyRate}
-              onChangeText={(t: string) => setForm(s => ({ ...s, dailyRate: t }))}
-            />
-          </View>
-          <View style={[styles.rowItem, { marginLeft: 8 }]}> 
-            <Calendar size={18} color="#FF6B35" />
-            <TextInput
-              testID="weekly-rate-input"
-              style={styles.input}
-              placeholder="Weekly rate (optional)"
-              placeholderTextColor="#8E8E93"
-              keyboardType="numeric"
-              value={form.weeklyRate}
-              onChangeText={(t: string) => setForm(s => ({ ...s, weeklyRate: t }))}
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputRow}>
-          <MapPin size={18} color="#FF6B35" />
-          <TextInput
-            testID="location-input"
-            style={styles.input}
-            placeholder="Pickup location (City, Area) *"
-            placeholderTextColor="#8E8E93"
-            value={form.location}
-            onChangeText={(t: string) => setForm(s => ({ ...s, location: t }))}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <View style={[styles.rowItem, { marginRight: 8 }]}> 
-            <DollarSign size={18} color="#FF6B35" />
-            <TextInput
-              testID="deposit-input"
-              style={styles.input}
-              placeholder="Security deposit (optional)"
-              placeholderTextColor="#8E8E93"
-              keyboardType="numeric"
-              value={form.deposit}
-              onChangeText={(t: string) => setForm(s => ({ ...s, deposit: t }))}
-            />
-          </View>
-          <View style={[styles.rowItem, { marginLeft: 8 }]}> 
-            <Calendar size={18} color="#FF6B35" />
-            <TextInput
-              testID="availability-from-input"
-              style={styles.input}
-              placeholder="Available from (YYYY-MM-DD)"
-              placeholderTextColor="#8E8E93"
-              value={form.availabilityFrom}
-              onChangeText={(t: string) => setForm(s => ({ ...s, availabilityFrom: t }))}
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputRow}>
-          <Calendar size={18} color="#FF6B35" />
-          <TextInput
-            testID="availability-to-input"
-            style={styles.input}
-            placeholder="Available to (YYYY-MM-DD)"
-            placeholderTextColor="#8E8E93"
-            value={form.availabilityTo}
-            onChangeText={(t: string) => setForm(s => ({ ...s, availabilityTo: t }))}
-          />
-        </View>
-
         <Text style={styles.sectionTitle}>Photos</Text>
         <View style={styles.photosRow}>
           {form.photos.map((uri) => (
@@ -515,6 +412,19 @@ export default function NewListingScreen() {
             <ImagePlus size={20} color="#8E8E93" />
             <Text style={styles.addPhotoText}>Add Photos</Text>
           </TouchableOpacity>
+        </View>
+
+        <Text style={styles.sectionTitle}>Basic Info</Text>
+        <View style={styles.inputRow}>
+          <Tag size={18} color="#FF6B35" />
+          <TextInput
+            testID="title-input"
+            style={styles.input}
+            placeholder="Title (e.g., Canon C70 Cinema Camera)"
+            placeholderTextColor="#8E8E93"
+            value={form.title}
+            onChangeText={(t: string) => setForm(s => ({ ...s, title: t }))}
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Category</Text>
@@ -549,6 +459,100 @@ export default function NewListingScreen() {
         ) : (
           <Text style={styles.helperText}>Pick a category to see relevant fields.</Text>
         )}
+
+        <Text style={styles.sectionTitle}>Description</Text>
+        <View style={styles.inputRow}>
+          <FileText size={18} color="#FF6B35" />
+          <TextInput
+            testID="description-input"
+            style={[styles.input, styles.multiline]}
+            placeholder="Detailed description, included accessories, usage notes"
+            placeholderTextColor="#8E8E93"
+            multiline
+            numberOfLines={5}
+            value={form.description}
+            onChangeText={(t: string) => setForm(s => ({ ...s, description: t }))}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Pricing</Text>
+        <View style={styles.row}>
+          <View style={[styles.rowItem, { marginRight: 8 }]}> 
+            <DollarSign size={18} color="#FF6B35" />
+            <TextInput
+              testID="daily-rate-input"
+              style={styles.input}
+              placeholder="Daily rate *"
+              placeholderTextColor="#8E8E93"
+              keyboardType="numeric"
+              value={form.dailyRate}
+              onChangeText={(t: string) => setForm(s => ({ ...s, dailyRate: t }))}
+            />
+          </View>
+          <View style={[styles.rowItem, { marginLeft: 8 }]}> 
+            <Calendar size={18} color="#FF6B35" />
+            <TextInput
+              testID="weekly-rate-input"
+              style={styles.input}
+              placeholder="Weekly rate (optional)"
+              placeholderTextColor="#8E8E93"
+              keyboardType="numeric"
+              value={form.weeklyRate}
+              onChangeText={(t: string) => setForm(s => ({ ...s, weeklyRate: t }))}
+            />
+          </View>
+        </View>
+        <View style={styles.inputRow}>
+          <DollarSign size={18} color="#FF6B35" />
+          <TextInput
+            testID="deposit-input"
+            style={styles.input}
+            placeholder="Security deposit (optional)"
+            placeholderTextColor="#8E8E93"
+            keyboardType="numeric"
+            value={form.deposit}
+            onChangeText={(t: string) => setForm(s => ({ ...s, deposit: t }))}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Location</Text>
+        <View style={styles.inputRow}>
+          <MapPin size={18} color="#FF6B35" />
+          <TextInput
+            testID="location-input"
+            style={styles.input}
+            placeholder="Pickup location (City, Area) *"
+            placeholderTextColor="#8E8E93"
+            value={form.location}
+            onChangeText={(t: string) => setForm(s => ({ ...s, location: t }))}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Availability</Text>
+        <View style={styles.row}>
+          <View style={[styles.rowItem, { marginRight: 8 }]}> 
+            <Calendar size={18} color="#FF6B35" />
+            <TextInput
+              testID="availability-from-input"
+              style={styles.input}
+              placeholder="Available from (YYYY-MM-DD)"
+              placeholderTextColor="#8E8E93"
+              value={form.availabilityFrom}
+              onChangeText={(t: string) => setForm(s => ({ ...s, availabilityFrom: t }))}
+            />
+          </View>
+          <View style={[styles.rowItem, { marginLeft: 8 }]}> 
+            <Calendar size={18} color="#FF6B35" />
+            <TextInput
+              testID="availability-to-input"
+              style={styles.input}
+              placeholder="Available to (YYYY-MM-DD)"
+              placeholderTextColor="#8E8E93"
+              value={form.availabilityTo}
+              onChangeText={(t: string) => setForm(s => ({ ...s, availabilityTo: t }))}
+            />
+          </View>
+        </View>
 
         <TouchableOpacity
           testID="submit-listing"
