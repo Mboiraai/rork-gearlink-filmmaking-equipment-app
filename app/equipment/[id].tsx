@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -21,6 +21,10 @@ import {
   ChevronLeft,
 } from "lucide-react-native";
 import { equipmentData } from "@/mocks/equipment";
+import { reviewsMock } from "@/mocks/reviews";
+import ReviewList from "@/components/ReviewList";
+import ReviewForm from "@/components/ReviewForm";
+import type { Review } from "@/types/review";
 import { useLocation } from "@/providers/LocationProvider";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -29,9 +33,15 @@ const { width: screenWidth } = Dimensions.get("window");
 export default function EquipmentDetailScreen() {
   const { id } = useLocalSearchParams();
   const { currency } = useLocation();
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  
-  const equipment = equipmentData.find(item => item.id === id);
+  const equipment = useMemo(() => equipmentData.find(item => String(item.id) === String(id)), [id]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
+  const [reviews, setReviews] = useState<Review[]>(() => reviewsMock.filter(r => r.equipmentId === String(id)));
+
+  const averageRating = useMemo(() => {
+    if (!reviews || reviews.length === 0) return equipment?.rating ?? 0;
+    const sum = reviews.reduce((acc, r) => acc + (r.rating ?? 0), 0);
+    return Math.round((sum / reviews.length) * 10) / 10;
+  }, [reviews, equipment]);
   
   if (!equipment) {
     return (
@@ -97,8 +107,8 @@ export default function EquipmentDetailScreen() {
             <View style={styles.metaInfo}>
               <View style={styles.ratingContainer}>
                 <Star size={16} color="#FFD700" fill="#FFD700" />
-                <Text style={styles.rating}>{equipment.rating}</Text>
-                <Text style={styles.reviews}>({equipment.reviews} reviews)</Text>
+                <Text style={styles.rating}>{averageRating}</Text>
+                <Text style={styles.reviews}>({reviews.length} reviews)</Text>
               </View>
               <View style={styles.locationContainer}>
                 <MapPin size={16} color="#FF6B35" />
@@ -121,6 +131,18 @@ export default function EquipmentDetailScreen() {
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Description</Text>
             <Text style={styles.description}>{equipment.description}</Text>
+          </View>
+
+          <View style={styles.reviewsSection}>
+            <Text style={styles.sectionTitle}>Reviews</Text>
+            <ReviewList reviews={reviews} />
+          </View>
+
+          <View style={styles.writeReviewSection}>
+            <ReviewForm equipmentId={String(equipment.id)} onSubmit={(rev) => {
+              console.log('[EquipmentDetail] new review', rev);
+              setReviews((prev) => [rev, ...prev]);
+            }} />
           </View>
 
           <View style={styles.specsSection}>
@@ -303,6 +325,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E0E0E0',
     lineHeight: 22,
+  },
+  reviewsSection: {
+    marginBottom: 16,
+  },
+  writeReviewSection: {
+    marginBottom: 20,
+    backgroundColor: '#0A0E27',
   },
   specsSection: {
     marginBottom: 20,
