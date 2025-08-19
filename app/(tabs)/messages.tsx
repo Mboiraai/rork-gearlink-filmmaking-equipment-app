@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,29 +7,47 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
-import { MessageCircle, CheckCheck, Clock } from "lucide-react-native";
+import { MessageCircle } from "lucide-react-native";
 import { router } from "expo-router";
-import { chatData } from "@/mocks/chats";
+import { trpc } from "@/lib/trpc";
+
+function formatTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = 60 * 1000;
+  const h = 60 * m;
+  const d = 24 * h;
+  if (diff < m) return "just now";
+  if (diff < h) return `${Math.floor(diff / m)}m`;
+  if (diff < d) return `${Math.floor(diff / h)}h`;
+  return `${Math.floor(diff / d)}d`;
+}
 
 export default function MessagesScreen() {
-  const renderChatItem = ({ item }: { item: typeof chatData[0] }) => (
+  const threadsQuery = trpc.threads.list.useQuery(undefined, {
+    refetchInterval: 4000,
+  });
+
+  const data = threadsQuery.data ?? [];
+
+  const renderChatItem = useCallback(({ item }: { item: typeof data[number] }) => (
     <TouchableOpacity
       style={styles.chatItem}
       onPress={() => router.push(`/chat/${item.id}` as any)}
       activeOpacity={0.8}
+      testID={`thread-${item.id}`}
     >
       <Image source={{ uri: item.avatar }} style={styles.avatar} />
       <View style={styles.chatContent}>
         <View style={styles.chatHeader}>
           <Text style={styles.userName}>{item.userName}</Text>
-          <Text style={styles.timestamp}>{item.timestamp}</Text>
+          <Text style={styles.timestamp}>{formatTime(item.timestamp)}</Text>
         </View>
         <Text style={styles.lastMessage} numberOfLines={1}>
           {item.lastMessage}
         </Text>
         <View style={styles.chatFooter}>
           <Text style={styles.equipmentName}>{item.equipmentName}</Text>
-          {item.unread > 0 && (
+          {((item.unread ?? 0) > 0) && (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadCount}>{item.unread}</Text>
             </View>
@@ -37,18 +55,20 @@ export default function MessagesScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [data]);
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={chatData}
+        data={data}
         renderItem={renderChatItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshing={threadsQuery.isFetching}
+        onRefresh={() => threadsQuery.refetch()}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
+          <View style={styles.emptyContainer} testID="empty-threads">
             <MessageCircle size={48} color="#8E8E93" />
             <Text style={styles.emptyText}>No messages yet</Text>
             <Text style={styles.emptySubtext}>
