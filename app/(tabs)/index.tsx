@@ -227,7 +227,12 @@ export default function HomeScreen() {
                   <MapPin size={16} color="#FF6B35" />
                   <Text style={styles.heroLocationText}>{item.location}</Text>
                 </View>
-                <Pressable style={({ pressed }) => [styles.heroButton, pressed && { opacity: 0.9 }]} onPress={() => router.push(`/equipment/${item.id}` as any)}>
+                <Pressable
+                  style={({ pressed }) => [styles.heroButton, pressed && { opacity: 0.9 }]}
+                  onPress={() => router.push(`/equipment/${item.id}` as any)}
+                  accessibilityRole="button"
+                  testID="rent-now-button"
+                >
                   <Text style={styles.heroButtonText}>Rent Now</Text>
                 </Pressable>
               </View>
@@ -402,7 +407,17 @@ const CategoryCard = React.memo(({ item }: { item: Category }) => {
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable onPressIn={onPressIn} onPressOut={onPressOut} style={styles.categoryCard} testID={`category-${item.key}`}>
+      <Pressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={styles.categoryCard}
+        testID={`category-${item.key}`}
+        accessibilityRole="button"
+        onPress={() => {
+          console.log('Category pressed', item.key, item.title);
+          router.push(`/search?category=${encodeURIComponent(item.title)}` as any);
+        }}
+      >
         <Image source={{ uri: item.image }} style={styles.categoryImage} />
         <LinearGradient colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.7)"]} style={styles.categoryGradient}>
           <Text style={styles.categoryTitle}>{item.title}</Text>
