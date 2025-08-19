@@ -1,6 +1,8 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSupabaseEnv } from '@/constants/supabaseConfig';
+import { signInWithEmail as sbSignInWithEmail, signUpWithEmail as sbSignUpWithEmail, getUser as sbGetUser, signOut as sbSignOut } from '@/lib/supabaseRest';
 
 export interface User {
   id: string;
@@ -62,7 +64,26 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
       if (storedUser) {
         setUser(JSON.parse(storedUser) as User);
       } else {
-        setUser(null);
+        const supaEnv = getSupabaseEnv();
+        if (supaEnv) {
+          console.log('[UserProvider] hydrate trying Supabase session');
+          const supaUser = await sbGetUser();
+          if (supaUser?.id) {
+            const mapped: User = {
+              id: supaUser.id,
+              name: (supaUser.user_metadata?.name as string | undefined) ?? (supaUser.email?.split('@')[0] ?? 'User'),
+              email: supaUser.email ?? '',
+              avatar: supaUser.user_metadata?.avatar_url as string | undefined,
+              userType: 'renter',
+            };
+            await AsyncStorage.setItem('user', JSON.stringify(mapped));
+            setUser(mapped);
+          } else {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
       }
     } catch (e: unknown) {
       console.error('[UserProvider] hydrate error', e);
@@ -99,13 +120,32 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
       const usersRaw = await AsyncStorage.getItem(USERS_KEY);
       const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
       const match = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      if (!match) {
-        throw new Error('Invalid credentials');
+      if (match) {
+        const mappedLocal: User = { id: match.id, name: match.name, email: match.email, avatar: match.avatar, userType: match.userType };
+        await AsyncStorage.setItem('user', JSON.stringify(mappedLocal));
+        setUser(mappedLocal);
+        return true;
       }
-      const mapped: User = { id: match.id, name: match.name, email: match.email, avatar: match.avatar, userType: match.userType };
-      await AsyncStorage.setItem('user', JSON.stringify(mapped));
-      setUser(mapped);
-      return true;
+      const supaEnv = getSupabaseEnv();
+      if (supaEnv) {
+        console.log('[Auth] signIn fallback to Supabase');
+        await sbSignInWithEmail({ email, password });
+        const supaUser = await sbGetUser();
+        if (!supaUser?.id) {
+          throw new Error('Authentication failed');
+        }
+        const mapped: User = {
+          id: supaUser.id,
+          name: (supaUser.user_metadata?.name as string | undefined) ?? (supaUser.email?.split('@')[0] ?? 'User'),
+          email: supaUser.email ?? email,
+          avatar: supaUser.user_metadata?.avatar_url as string | undefined,
+          userType: 'renter',
+        };
+        await AsyncStorage.setItem('user', JSON.stringify(mapped));
+        setUser(mapped);
+        return true;
+      }
+      throw new Error('Invalid credentials');
     } catch (e: unknown) {
       console.error('[Auth] signIn error', e);
       setError(e instanceof Error ? e.message : 'Failed to sign in');
@@ -119,26 +159,43 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     try {
       setAuthLoading(true);
       setError(null);
+      const supaEnv = getSupabaseEnv();
+      if (supaEnv) {
+        console.log('[Auth] signUp using Supabase');
+        const res = await sbSignUpWithEmail({ email, password });
+        const supaUser = await sbGetUser();
+        const resolvedName = name && name.trim().length > 0 ? name.trim() : (email.split('@')[0] ?? 'User');
+        const mapped: User = {
+          id: supaUser?.id ?? res.user?.id ?? generateId(),
+          name: (supaUser?.user_metadata?.name as string | undefined) ?? resolvedName,
+          email: supaUser?.email ?? email,
+          avatar: (supaUser?.user_metadata?.avatar_url as string | undefined) ?? undefined,
+          userType: 'renter',
+        };
+        await AsyncStorage.setItem('user', JSON.stringify(mapped));
+        setUser(mapped);
+        return true;
+      }
       const usersRaw = await AsyncStorage.getItem(USERS_KEY);
       const users: StoredAuthUser[] = usersRaw ? JSON.parse(usersRaw) as StoredAuthUser[] : [];
       const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (existing) {
         throw new Error('Email already registered');
       }
-      const resolvedName = name && name.trim().length > 0 ? name.trim() : (email.split('@')[0] ?? 'User');
+      const resolvedNameLocal = name && name.trim().length > 0 ? name.trim() : (email.split('@')[0] ?? 'User');
       const newUser: StoredAuthUser = {
         id: generateId(),
         email,
         password,
-        name: resolvedName,
+        name: resolvedNameLocal,
         avatar: undefined,
         userType: 'renter',
       };
       const updated = [...users, newUser];
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(updated));
-      const mapped: User = { id: newUser.id, name: newUser.name, email: newUser.email, avatar: newUser.avatar, userType: newUser.userType };
-      await AsyncStorage.setItem('user', JSON.stringify(mapped));
-      setUser(mapped);
+      const mappedLocal: User = { id: newUser.id, name: newUser.name, email: newUser.email, avatar: newUser.avatar, userType: newUser.userType };
+      await AsyncStorage.setItem('user', JSON.stringify(mappedLocal));
+      setUser(mappedLocal);
       return true;
     } catch (e: unknown) {
       console.error('[Auth] signUp error', e);
@@ -228,6 +285,11 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
     try {
       setAuthLoading(true);
       setError(null);
+      const supaEnv = getSupabaseEnv();
+      if (supaEnv) {
+        console.log('[Auth] logout Supabase');
+        await sbSignOut();
+      }
       await AsyncStorage.multiRemove(['user']);
       setUser(null);
     } catch (e: unknown) {

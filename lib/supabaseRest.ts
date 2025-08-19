@@ -148,7 +148,13 @@ export async function signInWithEmail(payload: SignUpPayload): Promise<SupabaseA
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `Auth failed ${res.status}`);
+    try {
+      const parsed = JSON.parse(text) as { error?: string; error_description?: string; msg?: string; message?: string };
+      const msg = parsed.error_description ?? parsed.message ?? parsed.msg ?? parsed.error ?? text;
+      throw new Error(msg || `Auth failed ${res.status}`);
+    } catch {
+      throw new Error(text || `Auth failed ${res.status}`);
+    }
   }
   const session = (await res.json()) as SupabaseAuthSession;
   if (session?.access_token) await setAccessToken(session.access_token);
