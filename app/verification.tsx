@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Image,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { router } from "expo-router";
 import {
@@ -17,19 +20,28 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react-native";
+import * as ImagePicker from 'expo-image-picker';
 import { useUser } from "@/providers/UserProvider";
+import { getSupabaseEnv } from "@/constants/supabaseConfig";
+import { getAccessToken } from "@/lib/supabaseRest";
 
 interface VerificationStep {
-  id: string;
+  id: 'id' | 'kin' | 'address';
   title: string;
   description: string;
   icon: any;
   completed: boolean;
 }
 
+interface PickedFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
 export default function VerificationScreen() {
-  const { setVerified } = useUser();
-  const [currentStep, setCurrentStep] = useState(0);
+  const { setVerified, user } = useUser();
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [steps, setSteps] = useState<VerificationStep[]>([
     {
       id: 'id',
@@ -54,54 +66,172 @@ export default function VerificationScreen() {
     },
   ]);
 
-  const [kinDetails, setKinDetails] = useState({
+  const [kinDetails, setKinDetails] = useState<{ name: string; relationship: string; phone: string; idNumber: string; }>({
     name: '',
     relationship: '',
     phone: '',
     idNumber: '',
   });
+  const [idFile, setIdFile] = useState<PickedFile | null>(null);
+  const [addressFile, setAddressFile] = useState<PickedFile | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
-  const handleStepComplete = () => {
-    const updatedSteps = [...steps];
-    updatedSteps[currentStep].completed = true;
-    setSteps(updatedSteps);
+  const canContinue = useMemo(() => {
+    if (steps[currentStep]?.id === 'id') return !!idFile;
+    if (steps[currentStep]?.id === 'kin') return kinDetails.name.trim().length > 0 && kinDetails.relationship.trim().length > 0 && kinDetails.phone.trim().length > 0 && kinDetails.idNumber.trim().length > 0;
+    if (steps[currentStep]?.id === 'address') return !!addressFile;
+    return false;
+  }, [steps, currentStep, idFile, addressFile, kinDetails]);
 
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleSubmit();
+  const pickImage = useCallback(async (target: 'id' | 'address') => {
+    try {
+      console.log('[Verification] pickImage start', target);
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission required', 'Please grant access to your photo library to upload documents.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+      if (result.canceled) {
+        console.log('[Verification] image selection canceled');
+        return;
+      }
+      const asset = result.assets[0];
+      const name = asset.fileName ?? `${target}-${Date.now()}.jpg`;
+      const type = asset.mimeType ?? 'image/jpeg';
+      const file: PickedFile = { uri: asset.uri, name, type };
+      if (target === 'id') setIdFile(file); else setAddressFile(file);
+    } catch (e) {
+      console.error('[Verification] pickImage error', e);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
-  };
+  }, []);
 
-  const handleSubmit = () => {
-    Alert.alert(
-      'Verification Submitted',
-      'Your documents have been submitted for review. You will be notified once approved.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setVerified(true);
-            router.back();
+  const uploadToSupabase = useCallback(async (file: PickedFile, pathPrefix: string): Promise<string> => {
+    const env = getSupabaseEnv();
+    if (!env) {
+      throw new Error('Storage not configured');
+    }
+    const bucket = 'verifications';
+    const objectPath = `${pathPrefix}/${user?.id ?? 'anonymous'}/${Date.now()}-${file.name}`;
+    const url = `${env.url}/storage/v1/object/${bucket}/${encodeURI(objectPath)}`;
+    console.log('[Verification] uploadToSupabase', url);
+
+    const res = await fetch(file.uri);
+    const blob = await res.blob();
+
+    const bearer = (await getAccessToken()) ?? env.anonKey;
+
+    const uploadRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: env.anonKey,
+        Authorization: `Bearer ${bearer}`,
+        'Content-Type': file.type || blob.type || 'application/octet-stream',
+      },
+      body: blob,
+    });
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      console.error('[Verification] upload error', uploadRes.status, text);
+      throw new Error(text || 'Upload failed');
+    }
+    const publicUrl = `${env.url}/storage/v1/object/public/${bucket}/${encodeURI(objectPath)}`;
+    return publicUrl;
+  }, [user]);
+
+  const handleStepComplete = useCallback(async () => {
+    try {
+      if (!canContinue) {
+        Alert.alert('Incomplete', 'Please complete this step before continuing.');
+        return;
+      }
+      const updatedSteps = [...steps];
+      updatedSteps[currentStep].completed = true;
+      setSteps(updatedSteps);
+
+      if (currentStep < steps.length - 1) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        await handleSubmit();
+      }
+    } catch (e) {
+      console.error('[Verification] handleStepComplete error', e);
+      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong.');
+    }
+  }, [canContinue, steps, currentStep]);
+
+  const handleSubmit = useCallback(async () => {
+    try {
+      setSubmitting(true);
+      const env = getSupabaseEnv();
+      let idUrl: string | null = null;
+      let addressUrl: string | null = null;
+
+      if (idFile && env) {
+        idUrl = await uploadToSupabase(idFile, 'id');
+      }
+      if (addressFile && env) {
+        addressUrl = await uploadToSupabase(addressFile, 'address');
+      }
+
+      Alert.alert(
+        'Verification Submitted',
+        'Your documents have been submitted for review. You will be notified once approved.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              void setVerified(true);
+              router.back();
+            },
           },
-        },
-      ]
-    );
-  };
+        ]
+      );
+      console.log('[Verification] submitted payload', {
+        idUrl,
+        addressUrl,
+        kinDetails,
+        platform: Platform.OS,
+      });
+    } catch (e) {
+      console.error('[Verification] submit error', e);
+      Alert.alert('Submit failed', e instanceof Error ? e.message : 'Could not submit verification.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [idFile, addressFile, kinDetails, uploadToSupabase, setVerified]);
 
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (
           <View style={styles.stepContent}>
-            <TouchableOpacity style={styles.uploadBox}>
-              <Upload size={48} color="#FF6B35" />
-              <Text style={styles.uploadText}>Tap to upload ID</Text>
-              <Text style={styles.uploadSubtext}>JPG, PNG or PDF (Max 5MB)</Text>
+            <TouchableOpacity
+              style={styles.uploadBox}
+              testID="upload-id"
+              onPress={() => pickImage('id')}
+              disabled={submitting}
+            >
+              {idFile ? (
+                <>
+                  <Image source={{ uri: idFile.uri }} style={styles.preview} />
+                  <Text style={styles.uploadText}>{idFile.name}</Text>
+                </>
+              ) : (
+                <>
+                  <Upload size={48} color="#FF6B35" />
+                  <Text style={styles.uploadText}>Tap to upload ID</Text>
+                  <Text style={styles.uploadSubtext}>JPG or PNG (Max ~5MB)</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         );
-      
       case 1:
         return (
           <View style={styles.stepContent}>
@@ -111,6 +241,7 @@ export default function VerificationScreen() {
               placeholderTextColor="#8E8E93"
               value={kinDetails.name}
               onChangeText={(text) => setKinDetails({ ...kinDetails, name: text })}
+              testID="kin-name"
             />
             <TextInput
               style={styles.input}
@@ -118,6 +249,7 @@ export default function VerificationScreen() {
               placeholderTextColor="#8E8E93"
               value={kinDetails.relationship}
               onChangeText={(text) => setKinDetails({ ...kinDetails, relationship: text })}
+              testID="kin-relationship"
             />
             <TextInput
               style={styles.input}
@@ -126,6 +258,7 @@ export default function VerificationScreen() {
               value={kinDetails.phone}
               onChangeText={(text) => setKinDetails({ ...kinDetails, phone: text })}
               keyboardType="phone-pad"
+              testID="kin-phone"
             />
             <TextInput
               style={styles.input}
@@ -133,21 +266,34 @@ export default function VerificationScreen() {
               placeholderTextColor="#8E8E93"
               value={kinDetails.idNumber}
               onChangeText={(text) => setKinDetails({ ...kinDetails, idNumber: text })}
+              testID="kin-id-number"
             />
           </View>
         );
-      
       case 2:
         return (
           <View style={styles.stepContent}>
-            <TouchableOpacity style={styles.uploadBox}>
-              <Upload size={48} color="#FF6B35" />
-              <Text style={styles.uploadText}>Tap to upload proof of address</Text>
-              <Text style={styles.uploadSubtext}>Utility bill or bank statement</Text>
+            <TouchableOpacity
+              style={styles.uploadBox}
+              testID="upload-address"
+              onPress={() => pickImage('address')}
+              disabled={submitting}
+            >
+              {addressFile ? (
+                <>
+                  <Image source={{ uri: addressFile.uri }} style={styles.preview} />
+                  <Text style={styles.uploadText}>{addressFile.name}</Text>
+                </>
+              ) : (
+                <>
+                  <Upload size={48} color="#FF6B35" />
+                  <Text style={styles.uploadText}>Tap to upload proof of address</Text>
+                  <Text style={styles.uploadSubtext}>Utility bill or bank statement (image)</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         );
-      
       default:
         return null;
     }
@@ -209,16 +355,23 @@ export default function VerificationScreen() {
         <TouchableOpacity
           style={styles.skipButton}
           onPress={() => router.back()}
+          testID="skip-button"
         >
           <Text style={styles.skipButtonText}>Skip for now</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.continueButton}
+          style={[styles.continueButton, !canContinue && { opacity: 0.6 }]}
           onPress={handleStepComplete}
+          disabled={!canContinue || submitting}
+          testID="continue-button"
         >
-          <Text style={styles.continueButtonText}>
-            {currentStep === steps.length - 1 ? 'Submit' : 'Continue'}
-          </Text>
+          {submitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.continueButtonText}>
+              {currentStep === steps.length - 1 ? 'Submit' : 'Continue'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -305,6 +458,11 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     padding: 40,
     alignItems: 'center',
+  },
+  preview: {
+    width: 160,
+    height: 100,
+    borderRadius: 8,
   },
   uploadText: {
     fontSize: 16,
