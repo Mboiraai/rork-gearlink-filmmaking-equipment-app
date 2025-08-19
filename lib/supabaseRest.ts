@@ -197,3 +197,35 @@ export async function getUser(): Promise<SupabaseUser | null> {
   const user = (await res.json()) as SupabaseUser;
   return user;
 }
+
+export async function resetPasswordForEmail(email: string): Promise<boolean> {
+  const env = getSupabaseEnv();
+  if (!env) throw new Error('Supabase env not configured');
+  const res = await fetch(`${env.url}/auth/v1/recover`, {
+    method: 'POST',
+    headers: { apikey: env.anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[Supabase Auth] resetPasswordForEmail error', res.status, text);
+    throw new Error(text || 'Failed to send reset email');
+  }
+  return true;
+}
+
+export async function resendEmailVerification(email: string): Promise<boolean> {
+  const env = getSupabaseEnv();
+  if (!env) throw new Error('Supabase env not configured');
+  const res = await fetch(`${env.url}/auth/v1/resend`, {
+    method: 'POST',
+    headers: { apikey: env.anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'signup', email }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[Supabase Auth] resendEmailVerification error', res.status, text);
+    throw new Error(text || 'Failed to resend verification');
+  }
+  return true;
+}

@@ -78,6 +78,10 @@ function RootLayoutNav() {
           presentation: "card" 
         }} 
       />
+      <Stack.Screen name="auth/sign-in" options={{ title: "Sign In", presentation: 'modal' }} />
+      <Stack.Screen name="auth/sign-up" options={{ title: "Create Account", presentation: 'modal' }} />
+      <Stack.Screen name="auth/forgot-password" options={{ title: "Reset Password", presentation: 'modal' }} />
+      <Stack.Screen name="auth/verify-email" options={{ title: "Verify Email", presentation: 'modal' }} />
     </Stack>
   );
 }

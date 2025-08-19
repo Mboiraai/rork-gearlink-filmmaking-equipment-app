@@ -1,7 +1,39 @@
 import { Tabs } from "expo-router";
-import { Home, Search, PlusCircle, User, MessageCircle } from "lucide-react-native";
+import { Home, Search, PlusCircle, User, MessageCircle, LogOut, LogIn } from "lucide-react-native";
 import React from "react";
-import { Platform } from "react-native";
+import { Image, Platform, TouchableOpacity, View } from "react-native";
+import { useUser } from "@/providers/UserProvider";
+import { router } from "expo-router";
+
+function HeaderLeftAvatar() {
+  const { user } = useUser();
+  const uri = user?.avatar || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=200&h=200&crop=faces&fit=crop';
+  return (
+    <View style={{ marginLeft: 12 }}>
+      <Image
+        source={{ uri }}
+        style={{ width: 28, height: 28, borderRadius: 14 }}
+        testID="header-avatar"
+      />
+    </View>
+  );
+}
+
+function HeaderRightAction() {
+  const { user, logout } = useUser();
+  if (user) {
+    return (
+      <TouchableOpacity accessibilityLabel="Sign out" onPress={logout} style={{ marginRight: 12 }} testID="header-signout">
+        <LogOut size={20} color="#FFFFFF" />
+      </TouchableOpacity>
+    );
+  }
+  return (
+    <TouchableOpacity accessibilityLabel="Sign in" onPress={() => router.push('/auth/sign-in' as any)} style={{ marginRight: 12 }} testID="header-signin">
+      <LogIn size={20} color="#FFFFFF" />
+    </TouchableOpacity>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -23,6 +55,8 @@ export default function TabLayout() {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        headerLeft: () => <HeaderLeftAvatar />,
+        headerRight: () => <HeaderRightAction />,
       }}
     >
       <Tabs.Screen
