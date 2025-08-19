@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { UserProvider } from "@/providers/UserProvider";
 import { LocationProvider } from "@/providers/LocationProvider";
+import { SupabaseProvider } from "@/providers/SupabaseProvider";
 import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
@@ -91,9 +92,11 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <LocationProvider>
-            <UserProvider>
-              <RootLayoutNav />
-            </UserProvider>
+            <SupabaseProvider>
+              <UserProvider>
+                <RootLayoutNav />
+              </UserProvider>
+            </SupabaseProvider>
           </LocationProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
