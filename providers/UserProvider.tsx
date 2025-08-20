@@ -145,10 +145,24 @@ export const [UserProvider, useUser] = createContextHook<UserContextValue>(() =>
         setUser(mapped);
         return true;
       }
-      throw new Error('Invalid credentials');
+      throw new Error('Invalid email or password');
     } catch (e: unknown) {
       console.error('[Auth] signIn error', e);
-      setError(e instanceof Error ? e.message : 'Failed to sign in');
+      let message = 'Failed to sign in';
+      if (e && typeof e === 'object' && 'message' in (e as Record<string, unknown>)) {
+        const raw = (e as { message?: string }).message ?? '';
+        try {
+          const maybeJson = JSON.parse(raw) as { msg?: string; error_description?: string; message?: string; error?: string; error_code?: string };
+          message = maybeJson.error_description ?? maybeJson.msg ?? maybeJson.message ?? maybeJson.error ?? 'Invalid email or password';
+        } catch {
+          if (/invalid\s*credentials/i.test(raw) || /invalid_grant/i.test(raw)) {
+            message = 'Invalid email or password';
+          } else if (raw) {
+            message = raw;
+          }
+        }
+      }
+      setError(message);
       return false;
     } finally {
       setAuthLoading(false);
