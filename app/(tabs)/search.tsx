@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,6 +15,8 @@ import {
 import { Search as SearchIcon, X, MapPin, Star } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { equipmentData } from "@/mocks/equipment";
+import type { EquipmentItem } from "@/types/equipment";
+import { geminiRankEquipment } from "@/lib/gemini";
 import { useLocation } from "@/providers/LocationProvider";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -115,8 +117,10 @@ export default function SearchScreen() {
     }
   }, [initialCategory]);
 
+  const [rankedIds, setRankedIds] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string>("");
   const filteredEquipment = useMemo(() => {
-    let filtered = equipmentData;
+    let filtered: EquipmentItem[] = equipmentData as unknown as EquipmentItem[];
 
     if (searchQuery) {
       filtered = filtered.filter((item) =>
@@ -132,8 +136,15 @@ export default function SearchScreen() {
       );
     }
 
+    if (rankedIds.length > 0 && searchQuery.trim().length > 0) {
+      const order = new Map(rankedIds.map((id, idx) => [id, idx] as const));
+      filtered = filtered
+        .slice()
+        .sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+    }
+
     return filtered;
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, rankedIds]);
 
   const renderEquipmentItem = ({ item }: { item: typeof equipmentData[0] }) => (
     <TouchableOpacity
@@ -163,6 +174,28 @@ export default function SearchScreen() {
 
   const showGrid = !searchQuery && !selectedCategory;
 
+  const runAIRanking = useCallback(async (q: string) => {
+    try {
+      setAiError("");
+      if (q.trim().length < 2) {
+        setRankedIds([]);
+        return;
+      }
+      const results = await geminiRankEquipment(q, equipmentData as unknown as EquipmentItem[]);
+      setRankedIds(results.map((r) => r.id));
+    } catch (e: unknown) {
+      console.log('[Search] AI ranking error', e);
+      setAiError('AI ranking unavailable');
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      void runAIRanking(searchQuery);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery, runAIRanking]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -188,6 +221,12 @@ export default function SearchScreen() {
           )}
         </View>
       </View>
+
+      {aiError ? (
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <Text style={{ color: '#FFB4A2', fontSize: 12 }}>{aiError}</Text>
+        </View>
+      ) : null}
 
       {showGrid ? (
         <ScrollView showsVerticalScrollIndicator={false}>
