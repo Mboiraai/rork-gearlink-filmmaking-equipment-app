@@ -178,3 +178,15 @@ export async function geminiAnalyzeImage(uri: string): Promise<ImageAnalysis> {
     return { typeGuess: '', quality: 'ok', tags: [] } as ImageAnalysis;
   }
 }
+
+export async function geminiHealthCheck(): Promise<{ ok: boolean; message: string }> {
+  try {
+    const { text } = await geminiGenerateText('Reply with "pong" only.');
+    const cleaned = (text ?? '').trim();
+    const ok = cleaned.toLowerCase().includes('pong');
+    return { ok, message: cleaned || 'Empty response' };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return { ok: false, message: msg };
+  }
+}

@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, Text, Switch, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
-import { Bell, ShieldCheck, Palette, Globe, Trash2, DollarSign, UserCog, ServerCog } from 'lucide-react-native';
+import { Bell, ShieldCheck, Palette, Globe, Trash2, DollarSign, UserCog, ServerCog, Sparkles } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocation } from '@/providers/LocationProvider';
 import { router } from 'expo-router';
 import { getSupabaseEnv } from '@/constants/supabaseConfig';
+import { geminiHealthCheck } from '@/lib/gemini';
 
 export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState<boolean>(true);
@@ -15,6 +16,8 @@ export default function SettingsScreen() {
   const currencyOptions = useMemo(() => ['UGX','TZS','KES','RWF','USD','GBP','EUR'], []);
   const [verifying, setVerifying] = useState<boolean>(false);
   const [verifyMessage, setVerifyMessage] = useState<string>('Not checked yet');
+  const [aiVerifying, setAiVerifying] = useState<boolean>(false);
+  const [aiMessage, setAiMessage] = useState<string>('Not checked yet');
 
   const clearCache = async () => {
     try {
@@ -78,6 +81,22 @@ export default function SettingsScreen() {
     }
   };
 
+  const verifyGemini = async () => {
+    try {
+      setAiVerifying(true);
+      setAiMessage('Checking...');
+      const res = await geminiHealthCheck();
+      setAiMessage(res.ok ? `OK: ${res.message}` : `Failed: ${res.message}`);
+      Alert.alert('AI Health', res.ok ? 'Gemini responded successfully.' : `Failed: ${res.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setAiMessage(`Failed: ${msg}`);
+      Alert.alert('AI Health', `Failed: ${msg}`);
+    } finally {
+      setAiVerifying(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Settings' }} />
@@ -91,6 +110,15 @@ export default function SettingsScreen() {
         {verifying ? <ActivityIndicator color="#FF6B35" /> : <Text style={styles.link}>Run</Text>}
       </TouchableOpacity>
       <Text testID="verify-supabase-status" style={styles.status}>{verifyMessage}</Text>
+
+      <TouchableOpacity testID="verify-gemini" style={styles.item} onPress={verifyGemini} disabled={aiVerifying}>
+        <View style={styles.itemLeft}>
+          <Sparkles size={20} color="#FF6B35" />
+          <Text style={styles.itemText}>Verify AI (Gemini)</Text>
+        </View>
+        {aiVerifying ? <ActivityIndicator color="#FF6B35" /> : <Text style={styles.link}>Run</Text>}
+      </TouchableOpacity>
+      <Text testID="verify-gemini-status" style={styles.status}>{aiMessage}</Text>
 
       <Text style={styles.sectionTitle}>Preferences</Text>
       <View style={styles.item}>
